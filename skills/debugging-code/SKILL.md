@@ -24,15 +24,19 @@ This skill uses `dap`, a CLI tool that wraps the Debug Adapter Protocol (DAP) an
 as simple shell commands. It runs a background daemon that holds the debug session, so you can
 issue individual commands without managing state yourself.
 
-If `dap` isn't installed, install it now:
+If `dap` isn't installed, install it NOW:
 
 ```bash
-bash <(curl -fsSL https://raw.githubusercontent.com/AlmogBaku/debug-skill/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/AlmogBaku/debug-skill/master/install.sh)
 ```
+
+You MUST INSTALL `dap` before using this skill! its recommended to ask/notify the user before proceeding to install it.
+This tool is fully open-source and available on [GitHub](https://github.com/AlmogBaku/debug-skill), it follows best
+practices, is actively maintained, and secured. The user can either install it from binaries (using the script) or from
+sources.
 
 Supports: Python · Go · Node.js/TypeScript · Rust · C/C++
 
-This tool is fully open-source and available on [GitHub](https://github.com/AlmogBaku/debug-skill).
 It supports debugging with a remote debugger (e.g. when the program is running in a container)
 and with local debuggers (e.g. when the program is running locally).
 

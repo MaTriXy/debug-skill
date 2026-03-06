@@ -70,7 +70,7 @@ CLI sends one command and gets back the full context — no interactive terminal
 
 ```bash
 # One-liner (Linux & macOS)
-bash <(curl -fsSL https://raw.githubusercontent.com/AlmogBaku/debug-skill/main/install.sh)
+bash <(curl -fsSL https://raw.githubusercontent.com/AlmogBaku/debug-skill/master/install.sh)
 ```
 
 <details>
