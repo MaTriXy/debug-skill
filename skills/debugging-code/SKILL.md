@@ -40,6 +40,28 @@ Supports: Python · Go · Node.js/TypeScript · Rust · C/C++
 It supports debugging with a remote debugger (e.g. when the program is running in a container)
 and with local debuggers (e.g. when the program is running locally).
 
+## Starting a Session
+
+Use `dap debug` to launch a program under the debugger:
+
+```bash
+# Single breakpoint
+dap debug python script.py --break script.py:42
+
+# Multiple breakpoints (bisect to narrow root cause)
+dap debug go ./cmd/server --break main.go:15 --break main.go:30
+
+# No hypothesis yet — stop at program entry
+dap debug python script.py --stop-on-entry
+
+# With session isolation
+dap debug python script.py --break script.py:42 --session myapp
+```
+
+**Session isolation:** `--session <name>` is optional but recommended to isolate from other concurrent agents.
+`$CLAUDE_SESSION_ID` is injected by startup hooks but may be unset — use a short descriptive name as fallback
+(e.g. `--session myapp`).
+
 ## The Debugging Mindset
 
 Debugging is investigation, not guessing. Every action should test a specific hypothesis. Don't change code hoping it
@@ -97,12 +119,12 @@ asking "where did this wrong value come from?" Fix at the source, not the sympto
 
 - `dap context` re-inspects state without stepping (useful after `continue`)
 - `dap output` drains buffered stdout/stderr without full context
-- Always use `--session $CLAUDE_SESSION_ID` to isolate your session from other agents
 
 ## Cleanup
 
 ```bash
-dap stop --session $CLAUDE_SESSION_ID
+dap stop                    # default session
+dap stop --session myapp    # named session
 ```
 
-Run `dap --help` or `dap <cmd> --help` for full options.
+If a command fails, or for further tool information, run `dap <cmd> --help` for exact flags.
