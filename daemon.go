@@ -200,6 +200,7 @@ func (d *Daemon) waitForStopped() (*ContextResult, error) {
 			d.mu.Lock()
 			output := d.outputString()
 			d.mu.Unlock()
+			d.stopSession()
 			return &ContextResult{Output: output, ExitCode: exitCode}, nil
 		case godap.ResponseMessage:
 			if !m.GetResponse().Success {
@@ -467,7 +468,7 @@ func (d *Daemon) handleDebug(rawArgs json.RawMessage) *Response {
 
 func (d *Daemon) handleStep(rawArgs json.RawMessage) *Response {
 	if d.client == nil {
-		return &Response{Status: "error", Error: "no active debug session — run 'dap debug' first"}
+		return &Response{Status: "error", Error: "no active debug session (program may have terminated) — run 'dap debug' to start a new session"}
 	}
 
 	var args StepArgs
@@ -502,7 +503,7 @@ func (d *Daemon) handleStep(rawArgs json.RawMessage) *Response {
 
 func (d *Daemon) handleContinue(_ json.RawMessage) *Response {
 	if d.client == nil {
-		return &Response{Status: "error", Error: "no active debug session — run 'dap debug' first"}
+		return &Response{Status: "error", Error: "no active debug session (program may have terminated) — run 'dap debug' to start a new session"}
 	}
 
 	threadID := resolveThreadID(d.threadID)
@@ -516,7 +517,7 @@ func (d *Daemon) handleContinue(_ json.RawMessage) *Response {
 
 func (d *Daemon) handleContext(rawArgs json.RawMessage) *Response {
 	if d.client == nil {
-		return &Response{Status: "error", Error: "no active debug session — run 'dap debug' first"}
+		return &Response{Status: "error", Error: "no active debug session (program may have terminated) — run 'dap debug' to start a new session"}
 	}
 
 	var args ContextArgs
@@ -535,7 +536,7 @@ func (d *Daemon) handleContext(rawArgs json.RawMessage) *Response {
 
 func (d *Daemon) handleEval(rawArgs json.RawMessage) *Response {
 	if d.client == nil {
-		return &Response{Status: "error", Error: "no active debug session — run 'dap debug' first"}
+		return &Response{Status: "error", Error: "no active debug session (program may have terminated) — run 'dap debug' to start a new session"}
 	}
 
 	var args EvalArgs

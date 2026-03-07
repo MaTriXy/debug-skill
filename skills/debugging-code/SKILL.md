@@ -45,17 +45,19 @@ and with local debuggers (e.g. when the program is running locally).
 Use `dap debug` to launch a program under the debugger:
 
 ```bash
-# Single breakpoint
-dap debug python script.py --break script.py:42
+# Single breakpoint — pass the entry-point file, backend auto-detected from extension
+dap debug script.py --break script.py:42
+dap debug cmd/server/main.go --break cmd/server/main.go:8
 
-# Multiple breakpoints (bisect to narrow root cause)
-dap debug go ./cmd/server --break main.go:15 --break main.go:30
+# Multi-file app — breakpoints across modules (paths relative to project root)
+dap debug entry.py --break src/api/routes.py:55 --break src/models/user.py:30
+dap debug cmd/server/main.go --break cmd/api/handler.go:30 --break cmd/models/user.go:45
 
 # No hypothesis yet — stop at program entry
-dap debug python script.py --stop-on-entry
+dap debug script.py --stop-on-entry
 
 # With session isolation
-dap debug python script.py --break script.py:42 --session myapp
+dap debug script.py --break script.py:42 --session myapp
 ```
 
 **Session isolation:** `--session <name>` is optional but recommended to isolate from other concurrent agents.
@@ -96,6 +98,8 @@ dap step out    # return to caller (you're in the wrong place)
 dap continue    # jump to next breakpoint
 ```
 
+`step in` crosses file boundaries — execution follows the call into whatever module it lives in. Each stop shows the current `file:line` so you always know where you are.
+
 ## Interactive Exploration While Paused
 
 Use `dap eval "<expr>"` to probe without stepping:
@@ -104,7 +108,7 @@ Use `dap eval "<expr>"` to probe without stepping:
 dap eval "len(items)"
 dap eval "user.profile.settings"
 dap eval "expected == actual"       # test hypothesis on live state
-dap eval "self.config" --frame 1    # inspect different stack frame
+dap eval "self.config" --frame 1    # frame 1 = caller (may be a different file)
 ```
 
 In interpreted languages (Python, JS), evaluate arbitrary expressions against live state — fastest way to confirm or
