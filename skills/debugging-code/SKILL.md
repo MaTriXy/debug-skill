@@ -37,37 +37,36 @@ sources.
 
 Supports: Python · Go · Node.js/TypeScript · Rust · C/C++
 
-It supports debugging with a remote debugger (e.g. when the program is running in a container)
-and with local debuggers (e.g. when the program is running locally).
+For all commands and flags: `dap --help` or `dap <cmd> --help`.
 
 ## Starting a Session
 
-Use `dap debug` to launch a program under the debugger:
+`dap debug <file>` launches the program under the debugger. Backend is auto-detected from the file extension.
 
-```bash
-# Single breakpoint — pass the entry-point file, backend auto-detected from extension
-dap debug script.py --break script.py:42
-dap debug cmd/server/main.go --break cmd/server/main.go:8
+Choose your starting strategy based on what you know:
 
-# Multi-file app — breakpoints across modules (paths relative to project root)
-dap debug entry.py --break src/api/routes.py:55 --break src/models/user.py:30
-dap debug cmd/server/main.go --break cmd/api/handler.go:30 --break cmd/models/user.go:45
+- **Have a hypothesis** — set a breakpoint where you expect the bug: `dap debug script.py --break script.py:42`
+- **Multi-file app** — breakpoints across modules: `--break src/api/routes.py:55 --break src/models/user.py:30`
+- **No hypothesis, small program** — walk from entry: `dap debug script.py --stop-on-entry` (avoid for large projects — startup code is noisy; bisect with breakpoints instead)
+- **Exception, location unknown** — `dap debug script.py --break-on-exception raised` (Python) / `all` (Go/JS)
+- **Remote process** — `dap debug --attach host:port --backend <name>`
 
-# No hypothesis yet — stop at program entry
-dap debug script.py --stop-on-entry
+**Session isolation:** `--session <name>` keeps concurrent agents from interfering.
+`$CLAUDE_SESSION_ID` is injected by startup hooks; use a short descriptive name as fallback (e.g. `--session myapp`).
 
-# With session isolation
-dap debug script.py --break script.py:42 --session myapp
-```
-
-**Session isolation:** `--session <name>` is optional but recommended to isolate from other concurrent agents.
-`$CLAUDE_SESSION_ID` is injected by startup hooks but may be unset — use a short descriptive name as fallback
-(e.g. `--session myapp`).
+Run `dap debug --help` for all flags, backends, and examples.
 
 ## The Debugging Mindset
 
 Debugging is investigation, not guessing. Every action should test a specific hypothesis. Don't change code hoping it
 fixes something. Understand first, fix after.
+
+**Debugging is almost always iterative.** Your first hypothesis will often be wrong or incomplete. That's expected.
+Each stop gives you new information that refines or replaces your hypothesis. The loop is:
+
+**Observe → Hypothesize → Act → Observe → ...**
+
+Embrace it. A single breakpoint rarely reveals the root cause; three stops that eliminate possibilities are progress.
 
 ## Know Your State
 
@@ -78,10 +77,30 @@ output. At each stop, ask:
 - Is the call stack showing the code path I expected?
 - Does the output so far reveal anything unexpected?
 
+Example output at a stop:
+
+```
+Stopped at compute() · script.py:41
+  39:   def compute(items):
+  40:       result = None
+> 41:       return result
+Locals: items=[]  result=None
+Stack:  main [script.py:10] → compute [script.py:41]
+Output: (none)
+```
+
+If the program exits before hitting your breakpoint:
+
+```
+Program terminated · Exit code: 1
+```
+
+→ Move breakpoints earlier, or restart with `--stop-on-entry`.
+
 ## Forming a Hypothesis
 
 Before setting a breakpoint: *"I believe the bug is in X because Y."* A good hypothesis is falsifiable — your next
-observation will confirm or disprove it. No hypothesis yet? Use `--stop-on-entry` and start from the top.
+observation will confirm or disprove it. No hypothesis yet? Bisect with two breakpoints to narrow the search space, or see starting strategies above.
 
 ## Setting Breakpoints Strategically
 
@@ -91,18 +110,21 @@ observation will confirm or disprove it. No hypothesis yet? Use `--stop-on-entry
 
 ## Navigating Execution
 
+At each stop, choose how to advance based on what you suspect:
+
 ```bash
-dap step        # step over (trust this call, advance)
-dap step in     # enter this function (suspect what's inside)
-dap step out    # return to caller (you're in the wrong place)
+dap step        # step over — trust this call, advance to next line
+dap step in     # step into — suspect what's inside this function
+dap step out    # step out — you're in the wrong place, return to caller
 dap continue    # jump to next breakpoint
+dap context     # re-inspect current state without stepping (after continue)
+dap output      # drain buffered stdout/stderr without full context
 ```
 
-`step in` crosses file boundaries — execution follows the call into whatever module it lives in. Each stop shows the current `file:line` so you always know where you are.
+`step in` crosses file boundaries — execution follows the call into whatever module it lives in. Each stop shows the
+current `file:line` so you always know where you are.
 
-## Interactive Exploration While Paused
-
-Use `dap eval "<expr>"` to probe without stepping:
+Use `dap eval "<expr>"` to probe live state without stepping:
 
 ```bash
 dap eval "len(items)"
@@ -111,18 +133,32 @@ dap eval "expected == actual"       # test hypothesis on live state
 dap eval "self.config" --frame 1    # frame 1 = caller (may be a different file)
 ```
 
-In interpreted languages (Python, JS), evaluate arbitrary expressions against live state — fastest way to confirm or
-rule out a theory without re-running.
+Run `dap step --help`, `dap eval --help`, etc. for details.
 
-## Tracing to Root Cause
+## Walkthrough
 
-Work backward from the anomaly: wrong output → wrong calculation → unexpected input → value set incorrectly. Keep
-asking "where did this wrong value come from?" Fix at the source, not the symptom.
+**Bug: `compute()` returns `None`**
 
-## Tips
+```
+Hypothesis: result not assigned before return
+→ dap debug script.py --break script.py:41
+  Locals: result=None, items=[]   ← wrong, and input is also empty
 
-- `dap context` re-inspects state without stepping (useful after `continue`)
-- `dap output` drains buffered stdout/stderr without full context
+New hypothesis: caller passing empty list
+→ dap eval "items" --frame 1      → []   ← confirmed
+→ dap step out                    → caller at line 10, no guard for empty input
+
+Root cause: missing guard. Fix → dap stop.
+```
+
+**No hypothesis (exception, unknown location):**
+
+```
+Exception: TypeError, location unknown
+→ dap debug script.py --break-on-exception raised
+  Stopped at compute():41, items=None
+Root cause: None passed where list expected.
+```
 
 ## Cleanup
 
@@ -130,5 +166,3 @@ asking "where did this wrong value come from?" Fix at the source, not the sympto
 dap stop                    # default session
 dap stop --session myapp    # named session
 ```
-
-If a command fails, or for further tool information, run `dap <cmd> --help` for exact flags.
