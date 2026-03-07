@@ -112,10 +112,11 @@ func noDaemonError(err error) error {
 
 func newDebugCmd() *cobra.Command {
 	var (
-		breaks      breakpointFlag
-		attach      string
-		backend     string
-		stopOnEntry bool
+		breaks           breakpointFlag
+		attach           string
+		backend          string
+		stopOnEntry      bool
+		exceptionFilters []string
 	)
 
 	cmd := &cobra.Command{
@@ -149,10 +150,11 @@ Blocks until the program hits a breakpoint or exits, then returns auto-context.`
 			}
 
 			debugArgs := DebugArgs{
-				Breaks:      []string(breaks),
-				StopOnEntry: stopOnEntry,
-				Attach:      attach,
-				Backend:     backend,
+				Breaks:           []string(breaks),
+				StopOnEntry:      stopOnEntry,
+				Attach:           attach,
+				Backend:          backend,
+				ExceptionFilters: exceptionFilters,
 			}
 			if len(args) > 0 {
 				debugArgs.Script = args[0]
@@ -183,6 +185,13 @@ Blocks until the program hits a breakpoint or exits, then returns auto-context.`
 	cmd.Flags().StringVar(&attach, "attach", "", "Attach to remote debugger at host:port")
 	cmd.Flags().StringVar(&backend, "backend", "", "Debugger backend (debugpy, dlv, js-debug, lldb-dap); auto-detected from file extension")
 	cmd.Flags().BoolVar(&stopOnEntry, "stop-on-entry", false, "Stop at first line")
+	cmd.Flags().StringArrayVar(&exceptionFilters, "break-on-exception", nil,
+		"Stop on exception; repeatable (e.g. --break-on-exception raised).\n"+
+			"Filter IDs are backend-specific:\n"+
+			"  debugpy (Python): raised, uncaught, userUnhandled\n"+
+			"  dlv (Go):         all, uncaught\n"+
+			"  js-debug (Node):  all, uncaught\n"+
+			"  lldb-dap:         on-throw, on-catch")
 
 	return cmd
 }

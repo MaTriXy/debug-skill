@@ -55,8 +55,9 @@ type Daemon struct {
 	cleanupFn func()
 
 	// Adapter address and config for child session creation (js-debug multi-session)
-	adapterAddr string
-	sessionBreaks []string // stored "file:line" breakpoints for child session re-init
+	adapterAddr            string
+	sessionBreaks          []string // stored "file:line" breakpoints for child session re-init
+	sessionExceptionFilters []string // stored exception filter IDs for child session re-init
 
 	// Socket
 	listener net.Listener
@@ -422,6 +423,7 @@ func (d *Daemon) handleDebug(rawArgs json.RawMessage) *Response {
 		}
 	}
 	d.sessionBreaks = args.Breaks
+	d.sessionExceptionFilters = args.ExceptionFilters
 	breaksByFile := groupBreakpoints(args.Breaks)
 	for file, lines := range breaksByFile {
 		if err := d.client.SetBreakpointsRequest(file, lines); err != nil {
@@ -429,7 +431,11 @@ func (d *Daemon) handleDebug(rawArgs json.RawMessage) *Response {
 			return &Response{Status: "error", Error: fmt.Sprintf("set breakpoints: %v", err)}
 		}
 	}
-	if err := d.client.SetExceptionBreakpointsRequest([]string{}); err != nil {
+	exceptionFilters := args.ExceptionFilters
+	if exceptionFilters == nil {
+		exceptionFilters = []string{}
+	}
+	if err := d.client.SetExceptionBreakpointsRequest(exceptionFilters); err != nil {
 		d.stopSession()
 		return &Response{Status: "error", Error: fmt.Sprintf("set exception breakpoints: %v", err)}
 	}
@@ -718,7 +724,11 @@ func (d *Daemon) setupChildSession(config map[string]any) error {
 	for file, lines := range breaksByFile {
 		childClient.SetBreakpointsRequest(file, lines)
 	}
-	childClient.SetExceptionBreakpointsRequest([]string{})
+	childExceptionFilters := d.sessionExceptionFilters
+	if childExceptionFilters == nil {
+		childExceptionFilters = []string{}
+	}
+	childClient.SetExceptionBreakpointsRequest(childExceptionFilters)
 	childClient.ConfigurationDoneRequest()
 
 	// Swap to child session — readLoop continues reading from child
