@@ -16,8 +16,6 @@ def resolve_order(tasks):
             visit(dep)
         resolved.append(task)
 
-    # BUG: sorts ascending — lower priority tasks get visited first
-    # Fix: add reverse=True
     for t in sorted(tasks, key=lambda t: t.priority):
         visit(t)
 
